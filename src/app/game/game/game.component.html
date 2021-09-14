@@ -1,15 +1,6 @@
 <div class="game">
   <div class="title">{{title}}</div>
-  <!-- <div class="title">{{message}}</div>
-  <div class="result">Nível {{level}}</div> -->
   <app-board [level]='level' [personalPlayer]='personalPlayer' [computerPlayer]='computerPlayer' ></app-board>
-
-  <!-- <button *ngIf="level < 3 && winner && !tie" id="btn-newgame" class="btn-game" (click)="nextLevel()">
-    Próximo Nível
-  </button>
-  <button id="btn-newgame" class="btn-game" (click)="startGame()">
-    Novo Jogo
-  </button> -->
 </div>
 
 

@@ -7,8 +7,8 @@ import * as io from 'socket.io-client';
 })
 export class WebSocketService {
 
-  private socket: any;
-  readonly uri: string = "ws://localhost:3000";
+  private socket: io.Socket;
+  readonly uri: string = 'ws://localhost:3000';
 
   constructor() {
     this.socket = io.io(this.uri);
@@ -18,7 +18,7 @@ export class WebSocketService {
     return new Observable(subscriber => {
       this.socket.on(eventName, data => {
         subscriber.next(data);
-      })
+      });
     });
   }
 
@@ -26,7 +26,7 @@ export class WebSocketService {
     this.socket.emit(eventName, data);
   }
 
-  getSocketId() {
+  getSocketId(): string {
     return this.socket.id;
   }
 }

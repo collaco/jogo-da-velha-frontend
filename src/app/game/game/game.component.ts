@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
+
 import { TypePlayer } from '@app/enums/type-player.enum';
-import { WebSocketService } from '@app/web-socket.service';
-import { Symbol } from 'src/app/enums/symbol.enum';
-import { Player } from 'src/app/models/player.model';
+import { Symbol } from '@enums/symbol.enum';
+import { Player } from '@models/player.model';
 
 @Component({
   selector: 'app-game',
@@ -17,7 +17,7 @@ export class GameComponent implements OnInit {
   personalPlayer: Player;
   computerPlayer: Player;
 
-  constructor(private webSocketService: WebSocketService) {
+  constructor() {
     this.init();
   }
 
@@ -30,32 +30,4 @@ export class GameComponent implements OnInit {
 
   ngOnInit(): void {
   }
-
-  /* nextLevel = () => {
-    this.winner = false;
-    this.tie = false;
-    this.startGame(true);
-  }
-
-  startGame(nextLevel: boolean = false): void {
-
-    this.message = 'Jogo Iniciado';
-
-    let eventName = 'start-game';
-    if (nextLevel) {
-      eventName = 'next-level-game';
-      this.currentPlayer = this.computerPlayer;
-    } else {
-      this.currentPlayer = this.personalPlayer;
-    }
-
-    this.webSocketService.emit(eventName, this.currentPlayer);
-
-    this.setResult('');
-    this.isRunning = true;
-  }
-
-  setResult = (msg: string): void => {
-    this.messageResult = msg;
-  } */
 }

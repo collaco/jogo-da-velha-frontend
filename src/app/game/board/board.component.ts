@@ -1,11 +1,10 @@
 import { Component, ElementRef, Input, OnInit, ViewChild } from '@angular/core';
-import { Status } from '@app/enums/status.enum';
+
 import { TypePlayer } from '@app/enums/type-player.enum';
 import { Position } from '@app/models/position.model';
-
 import { Player } from '@models/player.model';
-import { WebSocketService } from 'src/app/web-socket.service';
-
+import { WebSocketService } from '@services/web-socket.service';
+import { ThisReceiver } from '@angular/compiler';
 
 @Component({
   selector: 'app-board',
@@ -18,35 +17,25 @@ export class BoardComponent implements OnInit {
   @Input() computerPlayer: Player;
   @Input() level: number;
 
-  private status: Status;
-  private currentPlayer: Player;
+  _currentPlayer: Player;
 
   // Canvas
-  private canvasWidth = 400;
-  private canvasHeight = 400;
-  private canvasContext = null;
-
-
-  // Matriz representando o tabuleiro
-  private cells = null;
-
-  // Indica se a partida está em andamento ou não
-  private isRunning = false;
+  _canvasWidth: number;
+  _canvasHeight: number;
+  _canvasContext: any;
+  _cells: Array<any>;
+  _isRunning: boolean;
 
   /* Dimensões do tabuleiro */
-  private colWidth: number;
-  private colHeight: number;
-  private rowHeight: number;
+  _colWidth: number;
+  _colHeight: number;
+  _rowHeight: number;
 
-
-
-  // Bloqueia jogadas para o jogador
-  private blockPlay: boolean = false;
-
-  public message: string = '';
+  _blockPlay: boolean;
+  _winner: boolean;
+  _tie: boolean;
+  message: string;
   messageResult: string;
-  _winner: boolean = false;
-  _tie: boolean = false;
 
   @ViewChild('canvas', { static: true })
   canvas: ElementRef<HTMLCanvasElement>;
@@ -54,7 +43,7 @@ export class BoardComponent implements OnInit {
   constructor(
     private _webSocketService: WebSocketService
   ) {
-    this.currentPlayer = this.personalPlayer;
+    this._currentPlayer = this.personalPlayer;
   }
 
   ngOnInit(): void {
@@ -72,30 +61,33 @@ export class BoardComponent implements OnInit {
   }
 
   init(): void {
-    this.colWidth = 0;
-    this.colHeight = 0;
-    this.rowHeight = 0;
-    this.isRunning = false;
+    this._colWidth = 0;
+    this._colHeight = 0;
+    this._rowHeight = 0;
+    this._isRunning = false;
+    this._blockPlay = false;
     this._winner = false;
     this._tie = false;
     this.message = '';
     this.messageResult = '';
-    this.status = Status.Undefined;
 
     this.initCanvas();
   }
 
   initCanvas(): void {
-    // Dimensões do canvas
-    this.canvas.nativeElement.width = this.canvasWidth;
-    this.canvas.nativeElement.height = this.canvasHeight;
-    this.canvas.nativeElement.style.width = String(this.canvasWidth);
-    this.canvas.nativeElement.style.height = String(this.canvasHeight);
 
-    this.colWidth = this.canvasWidth / 3;
-    this.rowHeight = this.canvasHeight / 3;
+    this._canvasWidth = 400;
+    this._canvasHeight = 400;
 
-    this.canvasContext = this.canvas.nativeElement.getContext('2d');
+    this.canvas.nativeElement.width = this._canvasWidth;
+    this.canvas.nativeElement.height = this._canvasHeight;
+    this.canvas.nativeElement.style.width = String(this._canvasWidth);
+    this.canvas.nativeElement.style.height = String(this._canvasHeight);
+
+    this._colWidth = this._canvasWidth / 3;
+    this._rowHeight = this._canvasHeight / 3;
+
+    this._canvasContext = this.canvas.nativeElement.getContext('2d');
   }
 
   nextLevel = () => {
@@ -105,42 +97,31 @@ export class BoardComponent implements OnInit {
   }
 
   startGame = (nextLevel = false): void => {
-
-    this.message = 'Jogo Iniciado';
     if (nextLevel) {
-      this.currentPlayer = this.computerPlayer;
-      this._webSocketService.emit('next-level-game', this.currentPlayer);
+      this._currentPlayer = this.computerPlayer;
+      this._webSocketService.emit('next-level-game', this._currentPlayer);
     } else {
-      this.currentPlayer = this.personalPlayer;
-      this._webSocketService.emit('start-game', this.currentPlayer);
+      this._currentPlayer = this.personalPlayer;
+      this._webSocketService.emit('start-game', this._currentPlayer);
     }
 
-    this._createBoard();
-    this.blockPlay = false;
-    this.isRunning = true;
+    this.createBoard();
+    this._blockPlay = false;
+    this._isRunning = true;
   }
 
   clearBoard = () => {
-    this.clearStatus();
     this.clearResult();
-    this._clearCanvas();
+    this.clearCanvas();
     this.clearCells();
   }
 
   clearResult = () => {
-    this._setResult('');
-  }
-
-  clearStatus = () => {
-    this.setStatus(Status.Undefined);
-  }
-
-  setStatus = (status: Status): void => {
-    this.status = status;
+    this.setResult('');
   }
 
   clearCells = (): void => {
-    this.cells = [
+    this._cells = [
       ['', '', ''],
       ['', '', ''],
       ['', '', '']
@@ -148,7 +129,7 @@ export class BoardComponent implements OnInit {
   }
 
   playComputer = (position: Position): void => {
-    if (this.isRunning) {
+    if (this._isRunning) {
       this.renderSymbol(position, this.computerPlayer.symbol);
       this.changePlayer();
     }
@@ -159,49 +140,43 @@ export class BoardComponent implements OnInit {
       const position = this.calcClickPosition(event);
       if (this.isEmptyPosition(position)) {
         this.renderSymbol(position, this.personalPlayer.symbol);
-        this._webSocketService.emit('new-play', {
-          row: position.row,
-          col: position.col,
-          symbol: this.currentPlayer.symbol
-        });
-
+        this._webSocketService.emit('new-play', { row: position.row, col: position.col, symbol: this._currentPlayer.symbol });
         this.changePlayer();
       }
     }
-    this.renderSymbol({ row: -1, col: -1 }, this.personalPlayer.symbol);
   }
 
   isEmptyPosition = (position: Position): boolean => {
-    return (this.cells[position.row][position.col] === '');
+    return (this._cells[position.row][position.col] === '');
   }
 
   canPlay = (): boolean => {
-    return (this.isRunning && !this.blockPlay);
+    return (this._isRunning && !this._blockPlay);
   }
 
   calcClickPosition = (event: any): Position => {
     return {
-      col: Math.floor(event.offsetX / this.colWidth),
-      row: Math.floor(event.offsetY / this.rowHeight)
+      col: Math.floor(event.offsetX / this._colWidth),
+      row: Math.floor(event.offsetY / this._rowHeight)
     };
   }
 
   changePlayer = (): void => {
     if (this.isConputePlayer()) {
-      this.currentPlayer = this.personalPlayer;
-      this.blockPlay = false;
+      this._currentPlayer = this.personalPlayer;
+      this._blockPlay = false;
     } else {
-      this.currentPlayer = this.computerPlayer;
-      this.blockPlay = true;
+      this._currentPlayer = this.computerPlayer;
+      this._blockPlay = true;
     }
   }
 
   isConputePlayer = (): boolean => {
-    return (this.currentPlayer.type === TypePlayer.ComputerPlayer);
+    return (this._currentPlayer.type === TypePlayer.ComputerPlayer);
   }
 
   isPersonalPlayer = (): boolean => {
-    return (this.currentPlayer.type === TypePlayer.PersonalPlayer);
+    return (this._currentPlayer.type === TypePlayer.PersonalPlayer);
   }
 
   isValidPosition = (position: Position): boolean => {
@@ -209,125 +184,126 @@ export class BoardComponent implements OnInit {
   }
 
   configCanvasToRenderPosition = (position: Position): void => {
-    this.canvasContext.fillStyle = this.currentPlayer.color;
-    this.canvasContext.font = (this.canvasWidth / 5) + 'px Arial';
-    this.canvasContext.textAlign = 'center';
-    this.canvasContext.textBaseline = 'middle';
-    this.canvasContext.fillText(
-      this.currentPlayer.symbol, position.col * this.colWidth + this.colWidth / 2, position.row * this.rowHeight + this.rowHeight / 2);
+    this._canvasContext.fillStyle = this._currentPlayer.color;
+    this._canvasContext.font = (this._canvasWidth / 5) + 'px Arial';
+    this._canvasContext.textAlign = 'center';
+    this._canvasContext.textBaseline = 'middle';
+    this._canvasContext.fillText(
+      this._currentPlayer.symbol, position.col * this._colWidth + this._colWidth / 2, position.row * this._rowHeight + this._rowHeight / 2);
   }
 
-
-  // Desenha um símbolo no tabuleiro
   renderSymbol = (position: Position, symbol: string): void => {
     if (this.isValidPosition(position)) {
       this.configCanvasToRenderPosition(position);
-      this.cells[position.row][position.col] = symbol;
-
-      // Verifica se houve vitória ou empate e encerra o jogo
-      if (this._isVictory()) {
-        this._winner = (this.currentPlayer.name == this.personalPlayer.name);
-        this._tie = false;
-        this._setResult(this.currentPlayer.name + ' venceu!');
-        this.isRunning = false;
-      }
-      else if (this._isTie()) {
-        this._tie = true;
-        this._setResult('Empate!');
-        this.isRunning = false;
-      }
+      this.setCell(position, symbol);
+      this.updateStatus();
     }
-  };
+  }
 
-  // Verifica se houve empate
-  _isTie = function () {
-    var count = 0;
-    var cols = this.cells[0].length;
-    var rows = this.cells.length;
-
-    // Conta a quantidade de posições com algum símbolo e compara com o total de posições
-    for (var i = 0; i < cols; i++) {
-      for (var j = 0; j < rows; j++) {
-        if (this.cells[i][j] != '') {
-          count++;
-        }
-      }
+  updateStatus = () => {
+    if (this.isVictory()) {
+      this._winner = (this._currentPlayer.type === this.personalPlayer.type);
+      this._tie = false;
+      this.setResult(this._currentPlayer.name + ' venceu!');
+      this._isRunning = false;
+    } else if (this.isTie()) {
+      this._tie = true;
+      this._winner = false;
+      this.setResult('Empate!');
+      this._isRunning = false;
     }
+  }
 
-    var isTie = count == cols * rows;
+  setCell = (position: Position, symbol: string): void => {
+    this._cells[position.row][position.col] = symbol;
+  }
 
+  isTie = () => {
+    const isTie = (!this.isVictory() && this.isCompleted());
     if (isTie) {
       this._winner = false;
-      this.status = Status.Tie;
     }
 
     return isTie;
-  };
+  }
 
-  _isVictory = (): boolean => {
+  isCompleted = (): boolean => {
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 3; col++) {
+        if (!this.isBusyCell(row, col)) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  isBusyCell = (row, col) => {
+    return (this._cells[row][col] !== '');
+  }
+
+  isVictory = (): boolean => {
     if (
-      this._compareSymbols(this.cells[0][0], this.cells[1][0], this.cells[2][0]) ||
-      this._compareSymbols(this.cells[0][1], this.cells[1][1], this.cells[2][1]) ||
-      this._compareSymbols(this.cells[0][2], this.cells[1][2], this.cells[2][2]) ||
-      this._compareSymbols(this.cells[0][0], this.cells[0][1], this.cells[0][2]) ||
-      this._compareSymbols(this.cells[1][0], this.cells[1][1], this.cells[1][2]) ||
-      this._compareSymbols(this.cells[2][0], this.cells[2][1], this.cells[2][2]) ||
-      this._compareSymbols(this.cells[0][0], this.cells[1][1], this.cells[2][2]) ||
-      this._compareSymbols(this.cells[0][2], this.cells[1][1], this.cells[2][0])) {
-
-      this.setStatus(Status.Victory);
+      this.compareSymbols(this._cells[0][0], this._cells[1][0], this._cells[2][0]) ||
+      this.compareSymbols(this._cells[0][1], this._cells[1][1], this._cells[2][1]) ||
+      this.compareSymbols(this._cells[0][2], this._cells[1][2], this._cells[2][2]) ||
+      this.compareSymbols(this._cells[0][0], this._cells[0][1], this._cells[0][2]) ||
+      this.compareSymbols(this._cells[1][0], this._cells[1][1], this._cells[1][2]) ||
+      this.compareSymbols(this._cells[2][0], this._cells[2][1], this._cells[2][2]) ||
+      this.compareSymbols(this._cells[0][0], this._cells[1][1], this._cells[2][2]) ||
+      this.compareSymbols(this._cells[0][2], this._cells[1][1], this._cells[2][0])) {
 
       return true;
     }
     return false;
   }
 
-  _compareSymbols = (a, b, c): boolean => {
+  compareSymbols = (a, b, c): boolean => {
     return (a === b && b === c && c !== '');
   }
 
-  _setResult = (text): void => {
+  setResult = (text): void => {
     this.messageResult = text;
   }
 
-  _clearCanvas = (): void => {
-    this.canvasContext.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
+  clearCanvas = (): void => {
+    this._canvasContext.clearRect(0, 0, this._canvasWidth, this._canvasHeight);
   }
 
   drawVerticalLineOne = (): void => {
-    this.canvasContext.beginPath();
-    this.canvasContext.moveTo(this.colWidth, 0);
-    this.canvasContext.lineTo(this.colWidth, this.canvasHeight);
-    this.canvasContext.stroke();
+    this._canvasContext.beginPath();
+    this._canvasContext.moveTo(this._colWidth, 0);
+    this._canvasContext.lineTo(this._colWidth, this._canvasHeight);
+    this._canvasContext.stroke();
   }
 
   drawVerticalLineTwo = (): void => {
-    this.canvasContext.beginPath();
-    this.canvasContext.moveTo(2 * this.colWidth, 0);
-    this.canvasContext.lineTo(2 * this.colWidth, this.canvasHeight);
-    this.canvasContext.stroke();
+    this._canvasContext.beginPath();
+    this._canvasContext.moveTo(2 * this._colWidth, 0);
+    this._canvasContext.lineTo(2 * this._colWidth, this._canvasHeight);
+    this._canvasContext.stroke();
   }
 
   drawHorizontalLineOne = (): void => {
-    this.canvasContext.beginPath();
-    this.canvasContext.moveTo(0, this.rowHeight);
-    this.canvasContext.lineTo(this.canvasWidth, this.rowHeight);
-    this.canvasContext.stroke();
+    this._canvasContext.beginPath();
+    this._canvasContext.moveTo(0, this._rowHeight);
+    this._canvasContext.lineTo(this._canvasWidth, this._rowHeight);
+    this._canvasContext.stroke();
   }
 
   drawHorizontalLineTwo = (): void => {
-    this.canvasContext.beginPath();
-    this.canvasContext.moveTo(0, 2 * this.rowHeight);
-    this.canvasContext.lineTo(this.canvasWidth, 2 * this.rowHeight);
-    this.canvasContext.stroke();
+    this._canvasContext.beginPath();
+    this._canvasContext.moveTo(0, 2 * this._rowHeight);
+    this._canvasContext.lineTo(this._canvasWidth, 2 * this._rowHeight);
+    this._canvasContext.stroke();
   }
 
-  _createBoard = (): void => {
+  createBoard = (): void => {
 
     this.clearBoard();
 
-    this.canvasContext.strokeStyle = '#596575';
-    this.canvasContext.lineWidth = 3;
+    this._canvasContext.strokeStyle = '#596575';
+    this._canvasContext.lineWidth = 3;
 
     this.drawVerticalLineOne();
     this.drawVerticalLineTwo();
