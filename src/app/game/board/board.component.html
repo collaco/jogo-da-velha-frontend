@@ -1,0 +1,13 @@
+
+  <div class="title">{{message}}</div>
+  <div class="result">Nível {{level}}</div>
+  <canvas #canvas id="canvas" (click)="play($event)"></canvas>
+  <div class="result">{{messageResult}}</div>
+
+  <button *ngIf="level < 3 && _winner && !_tie" id="btn-newgame" class="btn-game" (click)="nextLevel()">
+    Próximo Nível
+  </button>
+  <button id="btn-newgame" class="btn-game" (click)="startGame()">
+    Novo Jogo
+  </button>
+
